@@ -17,6 +17,16 @@ describe('exiv2', function(){
       })
     });
 
+    it("should callback with image's tags when called with a buffer", function(done) {
+      exiv.getImageTags(fs.readFileSync(dir + '/books.jpg'), function(err, tags) {
+        should.not.exist(err);
+
+        tags.should.have.property('Exif.Image.DateTime', '2008:12:16 21:28:36');
+        tags.should.have.property('Exif.Photo.DateTimeOriginal', '2008:12:16 21:28:36');
+        done();
+      })
+    });
+
     it('should callback with null on untagged file', function(done) {
       exiv.getImageTags(dir + '/damien.jpg', function(err, tags) {
         should.not.exist(err);
@@ -25,7 +35,15 @@ describe('exiv2', function(){
       })
     });
 
-    it('should throw if no file path is provided', function() {
+    it('should callback with null on untagged buffer', function(done) {
+      exiv.getImageTags(fs.readFileSync(dir + '/damien.jpg'), function(err, tags) {
+        should.not.exist(err);
+        should.not.exist(tags);
+        done();
+      })
+    });
+
+    it('should throw if no file path or buffer is provided', function() {
       (function(){
         exiv.getImageTags()
       }).should.throw();
@@ -44,6 +62,15 @@ describe('exiv2', function(){
         done();
       });
     });
+
+    it('should report an error on an empty buffer', function(done) {
+      exiv.getImageTags(new Buffer(''), function(err, tags) {
+        should.exist(err);
+        should.not.exist(tags);
+        done();
+      });
+    });
+
   });
 
   describe('.setImageTags()', function(){
@@ -74,6 +101,7 @@ describe('exiv2', function(){
     after(function(done) {
       fs.unlink(temp, done);
     });
+
 
     it('should throw if no file path is provided', function() {
       (function(){
@@ -134,8 +162,31 @@ describe('exiv2', function(){
       });
     });
 
-    it('should callback with an empty array for files no previews', function(done) {
+    it("should callback with image's previews when called with a buffer", function(done) {
+      exiv.getImagePreviews(fs.readFileSync(dir + '/books.jpg'), function(err, previews) {
+        should.not.exist(err);
+        previews.should.be.an.instanceof(Array);
+        previews.should.have.lengthOf(1);
+        previews[0].should.have.property('mimeType', 'image/jpeg');
+        previews[0].should.have.property('height', 120);
+        previews[0].should.have.property('width', 160);
+        previews[0].should.have.property('data').with.instanceof(Buffer);
+        previews[0].data.should.have.property('length', 6071);
+        done();
+      });
+    });
+
+    it('should callback with an empty array for files with no previews', function(done) {
       exiv.getImagePreviews(dir + '/damien.jpg', function(err, previews) {
+        should.not.exist(err);
+        previews.should.be.an.instanceof(Array);
+        previews.should.have.lengthOf(0);
+        done();
+      })
+    });
+
+    it('should callback with an empty array for buffers with no previews', function(done) {
+      exiv.getImagePreviews(fs.readFileSync(dir + '/damien.jpg'), function(err, previews) {
         should.not.exist(err);
         previews.should.be.an.instanceof(Array);
         previews.should.have.lengthOf(0);

@@ -20,12 +20,22 @@ typedef std::map<std::string, std::string> tag_map_t;
 class Exiv2Worker : public Nan::AsyncWorker {
  public:
   Exiv2Worker(Nan::Callback *callback, const std::string fileName)
-    : Nan::AsyncWorker(callback), fileName(fileName) {}
+    : Nan::AsyncWorker(callback), isBuf(false), fileName(fileName) {}
+  Exiv2Worker(Nan::Callback *callback, const char* buf, const long len)
+    : Nan::AsyncWorker(callback), isBuf(true), buf(reinterpret_cast<const Exiv2::byte*>(buf)), bufLen(len) {}
   ~Exiv2Worker() {}
 
  protected:
-  const std::string fileName;
+  const bool isBuf;
+  const Exiv2::byte* buf = nullptr;
+  const long bufLen = -1;
+  const std::string fileName = "";
   std::string exifException;
+  Exiv2::Image::AutoPtr image() {
+    return this->isBuf
+      ? Exiv2::ImageFactory::open(this->buf, this->bufLen)
+      : Exiv2::ImageFactory::open(this->fileName);
+  }
 };
 
 // - - -
@@ -34,6 +44,8 @@ class GetTagsWorker : public Exiv2Worker {
  public:
   GetTagsWorker(Nan::Callback *callback, const std::string fileName)
     : Exiv2Worker(callback, fileName) {}
+  GetTagsWorker(Nan::Callback *callback, const char* buf, const long len)
+    : Exiv2Worker(callback, buf, len) {}
   ~GetTagsWorker() {}
 
   // Should become protected...
@@ -43,7 +55,7 @@ class GetTagsWorker : public Exiv2Worker {
   // structures here.
   void Execute () {
     try {
-      Exiv2::Image::AutoPtr image = Exiv2::ImageFactory::open(fileName);
+      Exiv2::Image::AutoPtr image = this->image();
       assert(image.get() != 0);
       image->readMetadata();
 
@@ -106,12 +118,16 @@ NAN_METHOD(GetImageTags) {
 
   /* Usage arguments */
   if (info.Length() <= 1 || !info[1]->IsFunction())
-    return Nan::ThrowTypeError("Usage: <filename> <callback function>");
+    return Nan::ThrowTypeError("Usage: <filename/buffer> <callback function>");
 
   Nan::Callback *callback = new Nan::Callback(info[1].As<Function>());
-  std::string filename = std::string(*Nan::Utf8String(info[0]));
-
-  Nan::AsyncQueueWorker(new GetTagsWorker(callback, filename));
+  if (info[0]->IsString()) {
+    std::string filename = std::string(*Nan::Utf8String(info[0]));
+    Nan::AsyncQueueWorker(new GetTagsWorker(callback, filename));
+  } else {
+    Local<Object> buf = info[0]->ToObject();
+    Nan::AsyncQueueWorker(new GetTagsWorker(callback, Buffer::Data(buf), Buffer::Length(buf)));
+  }
   return;
 }
 
@@ -121,6 +137,8 @@ class SetTagsWorker : public Exiv2Worker {
  public:
   SetTagsWorker(Nan::Callback *callback, const std::string fileName)
     : Exiv2Worker(callback, fileName) {}
+  SetTagsWorker(Nan::Callback *callback, const char* buf, const long len)
+    : Exiv2Worker(callback, buf, len) {}
   ~SetTagsWorker() {}
 
   // Should become protected...
@@ -130,7 +148,7 @@ class SetTagsWorker : public Exiv2Worker {
   // structures here.
   void Execute () {
     try {
-      Exiv2::Image::AutoPtr image = Exiv2::ImageFactory::open(fileName);
+      Exiv2::Image::AutoPtr image = this->image();
       assert(image.get() != 0);
 
       image->readMetadata();
@@ -187,7 +205,14 @@ NAN_METHOD(SetImageTags) {
   Nan::Callback *callback = new Nan::Callback(info[2].As<Function>());
   std::string filename = std::string(*Nan::Utf8String(info[0]));
 
-  SetTagsWorker *worker = new SetTagsWorker(callback, filename);
+  SetTagsWorker *worker;
+  if (info[0]->IsString()) {
+    std::string filename = std::string(*Nan::Utf8String(info[0]));
+    worker = new SetTagsWorker(callback, filename);
+  } else {
+    Local<Object> buf = info[0]->ToObject();
+    worker = new SetTagsWorker(callback, Buffer::Data(buf), Buffer::Length(buf));
+  }
 
   Local<Object> tags = Local<Object>::Cast(info[1]);
   Local<Array> keys = Nan::GetOwnPropertyNames(tags).ToLocalChecked();
@@ -209,6 +234,8 @@ class DeleteTagsWorker : public Exiv2Worker {
  public:
   DeleteTagsWorker(Nan::Callback *callback, const std::string fileName)
     : Exiv2Worker(callback, fileName) {}
+  DeleteTagsWorker(Nan::Callback *callback, const char* buf, const long len)
+    : Exiv2Worker(callback, buf, len) {}
   ~DeleteTagsWorker() {}
 
   // Should become protected...
@@ -218,7 +245,7 @@ class DeleteTagsWorker : public Exiv2Worker {
   // structures here.
   void Execute () {
     try {
-      Exiv2::Image::AutoPtr image = Exiv2::ImageFactory::open(fileName);
+      Exiv2::Image::AutoPtr image = this->image();
       assert(image.get() != 0);
 
       image->readMetadata();
@@ -281,7 +308,14 @@ NAN_METHOD(DeleteImageTags) {
   Nan::Callback *callback = new Nan::Callback(info[2].As<Function>());
   std::string filename = std::string(*Nan::Utf8String(info[0]));
 
-  DeleteTagsWorker *worker = new DeleteTagsWorker(callback, filename);
+  DeleteTagsWorker *worker;
+  if (info[0]->IsString()) {
+    std::string filename = std::string(*Nan::Utf8String(info[0]));
+    worker = new DeleteTagsWorker(callback, filename);
+  } else {
+    Local<Object> buf = info[0]->ToObject();
+    worker = new DeleteTagsWorker(callback, Buffer::Data(buf), Buffer::Length(buf));
+  }
 
   Local<Array> keys = Local<Array>::Cast(info[1]);
   for (unsigned i = 0; i < keys->Length(); i++) {
@@ -299,13 +333,15 @@ class GetPreviewsWorker : public Exiv2Worker {
  public:
   GetPreviewsWorker(Nan::Callback *callback, const std::string fileName)
     : Exiv2Worker(callback, fileName) {}
+  GetPreviewsWorker(Nan::Callback *callback, const char* buf, const long len)
+    : Exiv2Worker(callback, buf, len) {}
   ~GetPreviewsWorker() {}
 
   // Executed inside the worker-thread. Not safe to access V8, or V8 data
   // structures here.
   void Execute () {
     try {
-      Exiv2::Image::AutoPtr image = Exiv2::ImageFactory::open(fileName);
+      Exiv2::Image::AutoPtr image = this->image();
       assert(image.get() != 0);
       image->readMetadata();
 
@@ -386,12 +422,18 @@ NAN_METHOD(GetImagePreviews) {
 
   /* Usage arguments */
   if (info.Length() <= 1 || !info[1]->IsFunction())
-    return Nan::ThrowTypeError("Usage: <filename> <callback function>");
+    return Nan::ThrowTypeError("Usage: <filename/buffer> <callback function>");
 
   Nan::Callback *callback = new Nan::Callback(info[1].As<Function>());
   std::string filename = std::string(*Nan::Utf8String(info[0]));
 
-  Nan::AsyncQueueWorker(new GetPreviewsWorker(callback, filename));
+  if (info[0]->IsString()) {
+    std::string filename = std::string(*Nan::Utf8String(info[0]));
+    Nan::AsyncQueueWorker(new GetPreviewsWorker(callback, filename));
+  } else {
+    Local<Object> buf = info[0]->ToObject();
+    Nan::AsyncQueueWorker(new GetPreviewsWorker(callback, Buffer::Data(buf), Buffer::Length(buf)));
+  }
   return;
 }
 

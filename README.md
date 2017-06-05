@@ -1,8 +1,7 @@
-#Exiv2
+# Exiv2
 
-Exiv2 is a native c++ extension for [io.js](https://iojs.org/en/index.html) and
-[node.js](https://nodejs.org/) that provides support for reading and writing
-image metadata via the [Exiv2 library](http://www.exiv2.org).
+Exiv2 is a native C++ extension for [node.js](https://nodejs.org) that provides
+support for reading and writing image metadata via the [Exiv2 library](http://www.exiv2.org).
 
 ## Dependencies
 
@@ -24,6 +23,10 @@ You'll also need to install pkg-config to help locate the library and headers.
 [Homebrew](http://github.com/mxcl/homebrew/):
 
     brew install pkg-config exiv2
+
+### FreeBSD
+
+    pkg install pkgconf exiv2
 
 ### Other systems
 
@@ -49,6 +52,13 @@ the tests:
     var ex = require('exiv2');
 
     ex.getImageTags('./photo.jpg', function(err, tags) {
+      console.log("DateTime: " + tags["Exif.Image.DateTime"]);
+      console.log("DateTimeOriginal: " + tags["Exif.Photo.DateTimeOriginal"]);
+    });
+
+    var fs = require('exiv2');
+
+    ex.getImageTags(fs.readFileSync('./photo.jpg'), function(err, tags) {
       console.log("DateTime: " + tags["Exif.Image.DateTime"]);
       console.log("DateTimeOriginal: " + tags["Exif.Photo.DateTimeOriginal"]);
     });
