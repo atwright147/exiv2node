@@ -352,8 +352,8 @@ class GetPreviewsWorker : public Exiv2Worker {
       for (Exiv2::PreviewPropertiesList::iterator pos = list.begin(); pos != list.end(); pos++) {
         Exiv2::PreviewImage image = manager.getPreviewImage(*pos);
 
-        previews.push_back(Preview(pos->mimeType_, pos->height_,
-          pos->width_, (char*) image.pData(), pos->size_));
+        previews.push_back(Preview(image.mimeType(), image.height(),
+          image.width(), (char*) image.pData(), image.size()));
       }
     } catch (std::exception& e) {
       exifException.append(e.what());
