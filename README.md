@@ -56,7 +56,7 @@ the tests:
       console.log("DateTimeOriginal: " + tags["Exif.Photo.DateTimeOriginal"]);
     });
 
-    var fs = require('exiv2');
+    var fs = require('fs');
 
     ex.getImageTags(fs.readFileSync('./photo.jpg'), function(err, tags) {
       console.log("DateTime: " + tags["Exif.Image.DateTime"]);
