@@ -13,16 +13,13 @@
     "url": "git://github.com/dberesford/exiv2node.git"
   },
   "dependencies": {
-    "nan": "~2.2"
+    "nan": "^2.10.0"
   },
   "devDependencies": {
     "should": "*",
     "mocha": "*"
   },
   "optionalDependencies": {},
-  "engines": {
-    "node": "~0.8.0"
-  },
   "main": "exiv2",
   "scripts": {
     "preuninstall": "rm -rf build/*",
