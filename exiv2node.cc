@@ -125,7 +125,7 @@ NAN_METHOD(GetImageTags) {
     std::string filename = std::string(*Nan::Utf8String(info[0]));
     Nan::AsyncQueueWorker(new GetTagsWorker(callback, filename));
   } else {
-    Local<Object> buf = info[0]->ToObject();
+    Local<Object> buf = info[0]->ToObject(v8::Isolate::GetCurrent());
     Nan::AsyncQueueWorker(new GetTagsWorker(callback, Buffer::Data(buf), Buffer::Length(buf)));
   }
   return;
@@ -210,7 +210,7 @@ NAN_METHOD(SetImageTags) {
     std::string filename = std::string(*Nan::Utf8String(info[0]));
     worker = new SetTagsWorker(callback, filename);
   } else {
-    Local<Object> buf = info[0]->ToObject();
+    Local<Object> buf = info[0]->ToObject(v8::Isolate::GetCurrent());
     worker = new SetTagsWorker(callback, Buffer::Data(buf), Buffer::Length(buf));
   }
 
@@ -313,7 +313,7 @@ NAN_METHOD(DeleteImageTags) {
     std::string filename = std::string(*Nan::Utf8String(info[0]));
     worker = new DeleteTagsWorker(callback, filename);
   } else {
-    Local<Object> buf = info[0]->ToObject();
+    Local<Object> buf = info[0]->ToObject(v8::Isolate::GetCurrent());
     worker = new DeleteTagsWorker(callback, Buffer::Data(buf), Buffer::Length(buf));
   }
 
@@ -431,7 +431,7 @@ NAN_METHOD(GetImagePreviews) {
     std::string filename = std::string(*Nan::Utf8String(info[0]));
     Nan::AsyncQueueWorker(new GetPreviewsWorker(callback, filename));
   } else {
-    Local<Object> buf = info[0]->ToObject();
+    Local<Object> buf = info[0]->ToObject(v8::Isolate::GetCurrent());
     Nan::AsyncQueueWorker(new GetPreviewsWorker(callback, Buffer::Data(buf), Buffer::Length(buf)));
   }
   return;
@@ -439,10 +439,10 @@ NAN_METHOD(GetImagePreviews) {
 
 // - - -
 
-void InitAll(Handle<Object> target) {
-  target->Set(Nan::New<String>("getImageTags").ToLocalChecked(), Nan::New<FunctionTemplate>(GetImageTags)->GetFunction());
-  target->Set(Nan::New<String>("setImageTags").ToLocalChecked(), Nan::New<FunctionTemplate>(SetImageTags)->GetFunction());
-  target->Set(Nan::New<String>("deleteImageTags").ToLocalChecked(), Nan::New<FunctionTemplate>(DeleteImageTags)->GetFunction());
-  target->Set(Nan::New<String>("getImagePreviews").ToLocalChecked(), Nan::New<FunctionTemplate>(GetImagePreviews)->GetFunction());
+NAN_MODULE_INIT(InitAll) {
+  target->Set(Nan::New<String>("getImageTags").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(GetImageTags)).ToLocalChecked());
+  target->Set(Nan::New<String>("setImageTags").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(SetImageTags)).ToLocalChecked());
+  target->Set(Nan::New<String>("deleteImageTags").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(DeleteImageTags)).ToLocalChecked());
+  target->Set(Nan::New<String>("getImagePreviews").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(GetImagePreviews)).ToLocalChecked());
 }
 NODE_MODULE(exiv2, InitAll)
